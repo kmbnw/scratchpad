@@ -78,22 +78,13 @@
     var nodes = null;
     var edges = null;
     var network = null;
+    var options = null;
+    var container = null;
     var exportArea;
     var seed = 2;
 
     var beaker = {};
-
-    function setDefaultLocale() {
-      var defaultLocal = navigator.language;
-      var select = document.getElementById('locale');
-      select.selectedIndex = 0; // set fallback value
-      for (var i = 0, j = select.options.length; i < j; ++i) {
-        if (select.options[i].getAttribute('value') === defaultLocal) {
-          select.selectedIndex = i;
-          break;
-        }
-      }
-    }
+    var beakerInputs = {};
 
     function destroy() {
       if (network !== null) {
@@ -108,8 +99,7 @@
       edges = [];
 
       // create a network
-      var container = document.getElementById('mynetwork');
-      var options = {
+      options = {
         edges: {
           /*smooth: {
             'type': 'cubicBezier',
@@ -133,7 +123,7 @@
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Add Node";
             document.getElementById('node-label').value = data.label;
-            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = clearPopUp.bind();
             document.getElementById('network-popUp').style.display = 'block';
           },
@@ -142,9 +132,12 @@
             document.getElementById('operation').innerHTML = "Edit Node";
             document.getElementById('node-label').value = data.label;
             fillExistingNode(data);
-            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
             document.getElementById('network-popUp').style.display = 'block';
+          },
+          deleteNode: function(data, callback) {
+            callback(data);
           },
           addEdge: function (data, callback) {
             if (data.from == data.to) {
@@ -164,6 +157,9 @@
               document.getElementById('edge-operation').innerHTML = "Edit Edge";
               editEdgeWithoutDrag(data,callback);
             }
+          },
+          deleteEdge: function(data, callback) {
+            callback(data);
           }
         }
       };
@@ -203,6 +199,13 @@
         }
       };
 
+      edges.forEach(function(edge) {
+        if (beakerInputs[edge.from] == null) {
+          beakerInputs[edge.from] = {};
+        }
+        beakerInputs[edge.from][edge.to] = edge.label;
+      });
+
       Object.keys(beaker).forEach(function(k) {
         beaker[k]['resultPath'] = '/results';
       });
@@ -230,7 +233,7 @@
       callback(null);
     }
 
-    function saveData(data,callback) {
+    function saveNodeData(data,callback) {
       data.label = document.getElementById('node-label').value;
 
       beaker[data.id] = {
@@ -283,6 +286,12 @@
       }
 
       data.label = document.getElementById('edge-label').value || "";
+
+      if (beakerInputs[data.from] == null) {
+        beakerInputs[data.from] = {};
+      }
+      beakerInputs[data.from][data.to] = data.label;
+
       clearEdgePopUp();
       callback(data);
       exportNetwork();
@@ -314,6 +323,75 @@
         resizeExportArea();
     }
 
+    function getNodeById(data, id) {
+      for (var n = 0; n < data.length; n++) {
+        if (data[n].id == id) {  // double equals since id can be numeric or string
+          return data[n];
+        }
+      };
+
+      throw 'Can not find id \'' + id + '\' in data';
+    }
+
+    function getNodeData(data) {
+      var networkNodes = [];
+
+      data.forEach(function(elem, index, array) {
+        var key = elem.id;
+        
+        beaker[key] = {
+          'label': elem.label,
+          'dockerImage': elem.dockerImage,
+          'resultPath': elem.resultPath
+        };
+
+        networkNodes.push({id: key, label: elem.label, x: elem.x, y: elem.y});
+      });
+
+      return new vis.DataSet(networkNodes);
+    }
+
+    function getEdgeData(data) {
+      var networkEdges = [];
+
+      data.forEach(function(node) {
+        // add the connection
+        node.connections.forEach(function(connId, cIndex, conns) {
+          networkEdges.push({from: node.id, to: connId});
+          let cNode = getNodeById(data, connId);
+
+          var elementConnections = cNode.connections;
+
+          // remove the connection from the other node to prevent duplicate connections
+          var duplicateIndex = elementConnections.findIndex(function(connection) {
+            return connection == node.id; // double equals since id can be numeric or string
+          });
+
+
+          if (duplicateIndex != -1) {
+            elementConnections.splice(duplicateIndex, 1);
+          };
+        });
+      });
+
+      return new vis.DataSet(networkEdges);
+    }
+
+    function importNetwork() {
+      var inputValue = exportArea.value;
+      var inputData = JSON.parse(inputValue);
+      console.log(inputData);
+
+      var data = {
+        nodes: getNodeData(inputData),
+        edges: getEdgeData(inputData)
+      }
+
+      network = new vis.Network(container, data, options);
+
+      resizeExportArea();
+    }
+
     function destroyNetwork() {
         network.destroy();
         draw(0);
@@ -339,6 +417,7 @@
     }
 
     function init() {
+      container = document.getElementById('mynetwork');
       exportArea = document.getElementById('input_output');
       draw(5);
       exportNetwork();
@@ -355,12 +434,12 @@
       });
 
       document.getElementById("edge-label").addEventListener(
-          "keydown",
-          function(event) {
-            if (event.keyCode == 13) {
-                document.getElementById("edge-saveButton").click();
-            }
-        });
+        "keydown",
+        function(event) {
+          if (event.keyCode == 13) {
+              document.getElementById("edge-saveButton").click();
+          }
+      });
     }
 
   </script>
@@ -417,7 +496,7 @@
   </div>
 </div>
 <div>
-  <input type="button" id="export_button" onclick="exportNetwork()" value="export">
+  <input type="button" id="refresh_button" onclick="importNetwork()" value="refresh">
   <input type="button" id="destroy_button" onclick="destroyNetwork()" value="destroy">
 </div>
 <div>
