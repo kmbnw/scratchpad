@@ -310,6 +310,8 @@
 
       data.label = document.getElementById('edge-label').value || "";
 
+      data.id = data.from + ":" + data.to;
+
       if (beaker[data.from].output === undefined) {
         beaker[data.from].output = {};
       }
