@@ -330,15 +330,8 @@
     function exportNetwork() {
         clearOutputArea();
 
-        if (network !== null) {
-          var nodes = objectToArray(network.getPositions());
-
-          nodes.forEach(addConnections);
-
-          // pretty print node data
-          var exportValue = JSON.stringify(nodes, undefined, 2);
-
-          exportArea.value = exportValue;
+        if (beaker !== null) {
+          exportArea.value = JSON.stringify(beaker, undefined, 2);
         }
 
         resizeExportArea();
@@ -352,24 +345,6 @@
       };
 
       throw 'Can not find id \'' + id + '\' in data';
-    }
-
-    function getNodeData(data) {
-      var networkNodes = [];
-
-      data.forEach(function(elem, index, array) {
-        var key = elem.id;
-        
-        beaker[key] = {
-          'label': elem.label,
-          'dockerImage': elem.dockerImage,
-          'resultPath': elem.resultPath
-        };
-
-        networkNodes.push({id: key, label: elem.label, x: elem.x, y: elem.y});
-      });
-
-      return new vis.DataSet(networkNodes);
     }
 
     function getEdgeData(data) {
@@ -401,11 +376,14 @@
     function importNetwork() {
       var inputValue = exportArea.value;
       var inputData = JSON.parse(inputValue);
-      console.log(inputData);
+      
+      var nodes = toVisJSNodes(inputData);
+      //console.log(JSON.stringify(nodes, undefined, 2));
+      var edges = toVisJSEdges(inputData);
 
       var data = {
-        nodes: getNodeData(inputData),
-        edges: getEdgeData(inputData)
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
       }
 
       network = new vis.Network(container, data, options);
@@ -415,21 +393,8 @@
 
     function destroyNetwork() {
         network.destroy();
+        beaker = {};
         draw(0);
-    }
-
-    function objectToArray(obj) {
-        return Object.keys(obj).map(function (key) {
-          obj[key].id = key;
-          delete obj[key].x;
-          delete obj[key].y;
-
-          for (var attrname in beaker[key]) {
-            obj[key][attrname] = beaker[key][attrname];
-          }
-
-          return obj[key];
-        });
     }
 
     function resizeExportArea() {
