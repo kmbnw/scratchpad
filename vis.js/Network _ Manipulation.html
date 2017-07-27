@@ -100,7 +100,7 @@
       return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
     }
 
-    function draw(numNodes) {
+    function draw(initialize) {
       destroy();
       nodes = [];
       edges = [];
@@ -170,6 +170,11 @@
           }
         }
       };
+
+      if (!initialize) {
+        network = new vis.Network(container, {}, options);
+        return;
+      }
 
       beaker = {
         'ws': {
@@ -417,7 +422,8 @@
     function destroyNetwork() {
         network.destroy();
         beaker = {};
-        draw(0);
+        draw(false);
+        exportNetwork();
     }
 
     function resizeExportArea() {
@@ -428,7 +434,7 @@
     function init() {
       container = document.getElementById('mynetwork');
       exportArea = document.getElementById('input_output');
-      draw(5);
+      draw(true);
       exportNetwork();
 
       nodeKeys.forEach(function(k) {
