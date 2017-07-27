@@ -134,11 +134,13 @@
             document.getElementById('operation').innerHTML = "Edit Node";
             fillExistingNode(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
-            document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
+            document.getElementById('cancelButton').onclick = cancelNodeEdit.bind(this,callback);
             document.getElementById('network-popUp').style.display = 'block';
           },
           deleteNode: function(data, callback) {
+            deleteNodeData(data);
             callback(data);
+            exportNetwork();
           },
           addEdge: function (data, callback) {
             if (data.from == data.to) {
@@ -160,7 +162,9 @@
             }
           },
           deleteEdge: function(data, callback) {
-            deleteEdgeData(data, callback);
+            deleteEdgeData(data);
+            callback(data);
+            exportNetwork();
           }
         }
       };
@@ -256,8 +260,19 @@
       document.getElementById('network-popUp').style.display = 'none';
     }
 
-    function cancelEdit(callback) {
+    function clearEdgePopUp() {
+      document.getElementById('edge-saveButton').onclick = null;
+      document.getElementById('edge-cancelButton').onclick = null;
+      document.getElementById('edge-popUp').style.display = 'none';
+    }
+
+    function cancelNodeEdit(callback) {
       clearNodePopUp();
+      callback(null);
+    }
+    
+    function cancelEdgeEdit(callback) {
+      clearEdgePopUp();
       callback(null);
     }
 
@@ -285,36 +300,6 @@
       exportNetwork();
     }
 
-    function fillExistingNode(node) {
-      for (var attrname in beaker[node.id]) {
-        var nodeElem = document.getElementById('node-' + attrname);
-        if (nodeElem != null) {
-          nodeElem.value = beaker[node.id][attrname];
-        } else {
-          console.log('Skipping fill for attribute ' + attrname)
-        }
-      }
-    }
-
-    function editEdgeWithoutDrag(data, callback) {
-      // filling in the popup DOM elements
-      document.getElementById('edge-label').value = data.label || "";
-      document.getElementById('edge-saveButton').onclick = saveEdgeData.bind(this, data, callback);
-      document.getElementById('edge-cancelButton').onclick = cancelEdgeEdit.bind(this,callback);
-      document.getElementById('edge-popUp').style.display = 'block';
-    }
-
-    function clearEdgePopUp() {
-      document.getElementById('edge-saveButton').onclick = null;
-      document.getElementById('edge-cancelButton').onclick = null;
-      document.getElementById('edge-popUp').style.display = 'none';
-    }
-
-    function cancelEdgeEdit(callback) {
-      clearEdgePopUp();
-      callback(null);
-    }
-
     function saveEdgeData(data, callback) {
       if (typeof data.to === 'object') {
         data.to = data.to.id;
@@ -335,13 +320,45 @@
       exportNetwork();
     }
 
-    function deleteEdgeData(data, callback) {
+    function fillExistingNode(node) {
+      for (var attrname in beaker[node.id]) {
+        var nodeElem = document.getElementById('node-' + attrname);
+        if (nodeElem != null) {
+          nodeElem.value = beaker[node.id][attrname];
+        } else {
+          console.log('Skipping fill for attribute ' + attrname)
+        }
+      }
+    }
+
+    function editEdgeWithoutDrag(data, callback) {
+      // filling in the popup DOM elements
+      document.getElementById('edge-label').value = data.label || "";
+      document.getElementById('edge-saveButton').onclick = saveEdgeData.bind(this, data, callback);
+      document.getElementById('edge-cancelButton').onclick = cancelEdgeEdit.bind(this,callback);
+      document.getElementById('edge-popUp').style.display = 'block';
+    }
+
+    function deleteNodeData(data) {
+      deleteEdgeData(data);
+
+      data.nodes.forEach(function(nodeId) {
+        delete beaker[nodeId];
+      });
+    }
+
+    function deleteEdgeData(data) {
       data.edges.forEach(function(edgeKey) {
         var pair = edgeKey.split(':');
-        delete beaker[pair[0]].output[pair[1]];
+        var from = pair[0];
+        var to = pair[1];
+        delete beaker[from].output[to];
+
+        if (Object.keys(beaker[from].output).length == 0) {
+          delete beaker[from].output;
+        }
       });
-      callback(data);
-      exportNetwork();
+      
     }
 
     function addConnections(elem, index) {
