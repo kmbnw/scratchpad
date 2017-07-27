@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<!-- saved from url=(0057)http://visjs.org/examples/network/other/manipulation.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <title>Network | Manipulation</title>
+
+  <style type="text/css">
+    body, select {
+      font: 10pt sans;
+    }
+    #mynetwork {
+      position:relative;
+      width: 800px;
+      height: 600px;
+      border: 1px solid lightgray;
+    }
+    table.legend_table {
+      font-size: 11px;
+      border-width:1px;
+      border-color:#d3d3d3;
+      border-style:solid;
+    }
+    table.legend_table,td {
+      border-width:1px;
+      border-color:#d3d3d3;
+      border-style:solid;
+      padding: 2px;
+    }
+    div.table_content {
+      width:80px;
+      text-align:center;
+    }
+    div.table_description {
+      width:100px;
+    }
+
+    #operation {
+      font-size:28px;
+    }
+    #network-popUp {
+      display:none;
+      position:absolute;
+      top:350px;
+      left:170px;
+      z-index:299;
+      width:250px;
+      /*height:120px;*/
+      background-color: #f9f9f9;
+      border-style:solid;
+      border-width:3px;
+      border-color: #5394ed;
+      padding:10px;
+      text-align: center;
+    }
+    #edge-popUp {
+      display:none;
+      position:absolute;
+      top:350px;
+      left:170px;
+      z-index:299;
+      width:250px;
+      height:90px;
+      background-color: #f9f9f9;
+      border-style:solid;
+      border-width:3px;
+      border-color: #5394ed;
+      padding:10px;
+      text-align: center;
+    }
+  </style>
+  <script type="text/javascript" src="./Network _ Manipulation_files/exampleUtil.js"></script>
+  <script type="text/javascript" src="./Network _ Manipulation_files/vis.js"></script>
+  <link href="./Network _ Manipulation_files/vis-network.min.css" rel="stylesheet" type="text/css">
+
+  <script type="text/javascript">
+    var nodes = null;
+    var edges = null;
+    var network = null;
+    var exportArea;
+    var seed = 2;
+
+    var beaker = {};
+
+    function setDefaultLocale() {
+      var defaultLocal = navigator.language;
+      var select = document.getElementById('locale');
+      select.selectedIndex = 0; // set fallback value
+      for (var i = 0, j = select.options.length; i < j; ++i) {
+        if (select.options[i].getAttribute('value') === defaultLocal) {
+          select.selectedIndex = i;
+          break;
+        }
+      }
+    }
+
+    function destroy() {
+      if (network !== null) {
+        network.destroy();
+        network = null;
+      }
+    }
+
+    function draw(numNodes) {
+      destroy();
+      nodes = [];
+      edges = [];
+
+      // create a network
+      var container = document.getElementById('mynetwork');
+      var options = {
+        edges: {
+          smooth: {
+            'type': 'cubicBezier',
+            'forceDirection':'none'
+          },
+          physics: false,
+          arrows: {to : true }
+        },
+        nodes: {
+          shape: "box",
+          physics: false
+        },
+        /*layout: {
+          hierarchical: {
+            sortMethod: "directed"
+          }
+        },*/
+        manipulation: {
+          addNode: function (data, callback) {
+            // filling in the popup DOM elements
+            document.getElementById('operation').innerHTML = "Add Node";
+            document.getElementById('node-label').value = data.label;
+            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('cancelButton').onclick = clearPopUp.bind();
+            document.getElementById('network-popUp').style.display = 'block';
+          },
+          editNode: function (data, callback) {
+            // filling in the popup DOM elements
+            document.getElementById('operation').innerHTML = "Edit Node";
+            document.getElementById('node-label').value = data.label;
+            fillExistingNode(data);
+            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
+            document.getElementById('network-popUp').style.display = 'block';
+          },
+          addEdge: function (data, callback) {
+            if (data.from == data.to) {
+              var r = confirm("Do you want to connect the node to itself?");
+              if (r == true) {
+                callback(null);
+                return
+              }
+            }
+            else {
+              document.getElementById('edge-operation').innerHTML = "Add Edge";
+              editEdgeWithoutDrag(data, callback);
+            }
+          },
+          editEdge: {
+            editWithoutDrag: function(data, callback) {
+              document.getElementById('edge-operation').innerHTML = "Edit Edge";
+              editEdgeWithoutDrag(data,callback);
+            }
+          }
+        }
+      };
+      // create an array with nodes
+      var nodes = [
+        {id: 'ws',      label: 'Web Search'},
+        {id: 'lda',     label: 'LDA'},
+        {id: 'lda2vec', label: 'lda2vec'},
+        {id: 'es',      label: 'Elasticsearch'},
+        {id: 'syn',     label: 'Synonyms file', shape: "ellipse"}
+      ];
+
+      // create an array with edges
+      var edges = [
+        {from: 'ws',      to: 'lda',     label: 'search.tar.gz'},
+        {from: 'lda',     to: 'lda2vec', label: 'vectorized/'},
+        {from: 'lda2vec', to: 'es',      label: 'embeddings/'},
+        {from: 'ws',      to: 'es',      label: 'websearch.tar.gz'},
+        {from: 'syn',     to: 'es',      label: 'synonyms.txt'}
+      ];
+
+      beaker = {
+        'ws': {
+          dockerImg: 'foo:bingsearch'
+        },
+        'lda': {
+          dockerImg: 'foo:lda'
+        },
+        'lda2vec': {
+          dockerImg: 'foo:lda2vec'
+        },
+        'es': {
+          dockerImage: 'foo:elastic'
+        },
+        'syn': {
+          datasetId: 'DS12345'
+        }
+      };
+
+      nodes.forEach(function(node) {
+        beaker[node.id]['label'] = node.label;
+      });
+
+      var data = {
+        nodes: nodes,
+        edges: edges
+      };
+
+      network = new vis.Network(container, data, options);
+    }
+
+    function clearPopUp() {
+      document.getElementById('saveButton').onclick = null;
+      document.getElementById('cancelButton').onclick = null;
+      document.getElementById('network-popUp').style.display = 'none';
+    }
+
+    function cancelEdit(callback) {
+      clearPopUp();
+      callback(null);
+    }
+
+    function saveData(data,callback) {
+      data.label = document.getElementById('node-label').value;
+
+      beaker[data.id] = {
+        'label': data.label,
+        'dockerImg': document.getElementById('node-dockerImg').value,
+        'resultPath': document.getElementById('node-resultPath').value
+      };
+
+      clearPopUp();
+      callback(data);
+    }
+
+    function fillExistingNode(data) {
+      for (var attrname in beaker[data.id]) {
+        document.getElementById('node-' + attrname).value = beaker[data.id][attrname];
+      }
+    }
+
+    function editEdgeWithoutDrag(data, callback) {
+      // filling in the popup DOM elements
+      document.getElementById('edge-label').value = data.label || "";
+      document.getElementById('edge-saveButton').onclick = saveEdgeData.bind(this, data, callback);
+      document.getElementById('edge-cancelButton').onclick = cancelEdgeEdit.bind(this,callback);
+      document.getElementById('edge-popUp').style.display = 'block';
+    }
+
+    function clearEdgePopUp() {
+      document.getElementById('edge-saveButton').onclick = null;
+      document.getElementById('edge-cancelButton').onclick = null;
+      document.getElementById('edge-popUp').style.display = 'none';
+    }
+
+    function cancelEdgeEdit(callback) {
+      clearEdgePopUp();
+      callback(null);
+    }
+
+    function saveEdgeData(data, callback) {
+      if (typeof data.to === 'object') {
+        data.to = data.to.id;
+      }
+      if (typeof data.from === 'object') {
+        data.from = data.from.id;
+      }
+
+      data.label = document.getElementById('edge-label').value || "";
+      clearEdgePopUp();
+      callback(data);
+    }
+
+    function addConnections(elem, index) {
+        // need to replace this with a tree of the network, then get child direct children of the element
+        elem.connections = network.getConnectedNodes(elem.id, 'to');
+    }
+
+    function clearOutputArea() {
+        exportArea.value = "";
+    }
+
+    function exportNetwork() {
+        clearOutputArea();
+
+        if (network !== null) {
+          var nodes = objectToArray(network.getPositions());
+
+          nodes.forEach(addConnections);
+
+          // pretty print node data
+          var exportValue = JSON.stringify(nodes, undefined, 2);
+
+          exportArea.value = exportValue;
+        }
+
+        resizeExportArea();
+    }
+
+    function destroyNetwork() {
+        network.destroy();
+        draw(0);
+    }
+
+    function objectToArray(obj) {
+        return Object.keys(obj).map(function (key) {
+          obj[key].id = key;
+          delete obj[key].x;
+          delete obj[key].y;
+
+          for (var attrname in beaker[key]) {
+            obj[key][attrname] = beaker[key][attrname];
+          }
+
+          return obj[key];
+        });
+    }
+
+    function resizeExportArea() {
+        exportArea.style.height = (1 + exportArea.scrollHeight) + "px";
+        exportArea.style.width = "700px";
+    }
+
+    function init() {
+      exportArea = document.getElementById('input_output');
+      draw(5);
+    }
+
+  </script>
+
+</head>
+
+<body onload="init();">
+<h2>Editing the nodes and edges</h2>
+
+<div id="network-popUp">
+  <span id="operation">node</span> <br>
+  <table style="margin:auto;">
+    <tbody>
+      <tr>
+        <td>label</td><td><input id="node-label" value="new value"></td>
+      </tr>
+      <tr>
+        <td>Docker image</td><td><input id="node-dockerImg" value=""></td>
+      </tr>
+      <tr>
+        <td>Result path</td><td><input id="node-resultPath" value="/results"></td>
+      </tr>
+    </tbody>
+  </table>
+  <input type="button" value="save" id="saveButton">
+  <input type="button" value="cancel" id="cancelButton">
+</div>
+<div id="edge-popUp">
+  <span id="edge-operation">edge</span> <br>
+  <table style="margin:auto;">
+    <tr>
+      <td>label</td><td><input id="edge-label" value="" /></td>
+    </tr></table>
+  <input type="button" value="save" id="edge-saveButton" />
+  <input type="button" value="cancel" id="edge-cancelButton" />
+</div>
+<br>
+<div id="mynetwork"><div class="vis-network" tabindex="900" style="position: relative; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); width: 100%; height: 100%;"><canvas width="800" height="600" style="position: relative; touch-action: none; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); width: 100%; height: 100%;"></canvas><div class="vis-manipulation" style="display: block;"><div class="vis-button vis-add" style="touch-action: pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);"><div class="vis-label">Add Node</div></div><div class="vis-separator-line"></div><div class="vis-button vis-connect" style="touch-action: pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);"><div class="vis-label">Add Edge</div></div></div><div class="vis-edit-mode" style="display: block;"></div><div class="vis-close" style="display: block; touch-action: pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);"></div></div></div>
+<div>
+    <input type="button" id="export_button" onclick="exportNetwork()" value="export">
+    <input type="button" id="destroy_button" onclick="destroyNetwork()" value="destroy">
+</div>
+<div>
+    <textarea id="input_output"></textarea>
+</div>
+
+
+</body></html>
