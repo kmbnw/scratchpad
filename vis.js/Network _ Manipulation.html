@@ -84,7 +84,7 @@
     var seed = 2;
 
     var beaker = {};
-    var beakerInputs = {};
+    var beakerEdges = {};
 
     function destroy() {
       if (network !== null) {
@@ -163,55 +163,70 @@
           }
         }
       };
-      // create an array with nodes
-      var nodes = [
-        {id: 'ws',      label: 'Web Search'},
-        {id: 'lda',     label: 'LDA'},
-        {id: 'lda2vec', label: 'lda2vec'},
-        {id: 'es',      label: 'Elasticsearch'},
-        {id: 'syn',     label: 'Synonyms file', shape: "ellipse"}
-      ];
-
-      // create an array with edges
-      var edges = [
-        {from: 'ws',      to: 'lda',     label: 'search.tar.gz'},
-        {from: 'lda',     to: 'lda2vec', label: 'vectorized/'},
-        {from: 'lda2vec', to: 'es',      label: 'embeddings/'},
-        {from: 'ws',      to: 'es',      label: 'websearch.tar.gz'},
-        {from: 'syn',     to: 'es',      label: 'synonyms.txt'}
-      ];
 
       beaker = {
         'ws': {
-          dockerImage: 'foo:bingsearch'
+          dockerImage: 'foo:bingsearch',
+          desc: 'Web Search',
+          output: [
+            {to: 'lda', path: 'search.tar.gz'},
+            {to: 'es', path: 'websearch.tar.gz'}
+          ]
         },
         'lda': {
-          dockerImage: 'foo:lda'
+          dockerImage: 'foo:lda',
+          desc: 'LDA Model',
+          output: [
+            {to: 'lda2vec', path: 'vectorized/'}
+          ]
         },
         'lda2vec': {
-          dockerImage: 'foo:lda2vec'
+          dockerImage: 'foo:lda2vec',
+          desc: 'LDA2Vec Embedding',
+          output: [
+            {to: 'es', path: 'embeddings/'}
+          ]
         },
         'es': {
-          dockerImage: 'foo:elastic'
+          dockerImage: 'foo:elastic',
+          desc: 'Elasticsearch'
         },
         'syn': {
-          datasetId: 'DS12345'
+          datasetId: 'DS12345',
+          desc: 'Synonyms File',
+          output: [
+            {to: 'es', path: 'synonyms.txt'}
+          ]
         }
       };
-
-      edges.forEach(function(edge) {
-        if (beakerInputs[edge.from] == null) {
-          beakerInputs[edge.from] = {};
-        }
-        beakerInputs[edge.from][edge.to] = edge.label;
-      });
 
       Object.keys(beaker).forEach(function(k) {
         beaker[k]['resultPath'] = '/results';
       });
 
-      nodes.forEach(function(node) {
-        beaker[node.id]['label'] = node.label;
+      var nodes = Object.keys(beaker).map(function(key){
+        var node = {id: key, label: beaker[key].desc};
+        if (beaker[key].datasetId != null) {
+          node.shape = 'ellipse';
+        }
+        return node;
+      });
+
+      var edges = Object.keys(beaker).map(function(key){
+        var outputs = beaker[key].output;
+        if (outputs !== undefined) {
+          return outputs.map(function(output){
+            var edgeId = key + ":" + output.to;
+            return {id: edgeId, from: key, to: output.to, label: output.path}
+          });
+        }
+      });
+
+      edges = edges.filter(function(edge) { return edge !== undefined; });
+
+      // flatten
+      edges = edges.reduce(function(a, b) {
+        return a.concat(b);
       });
 
       var data = {
@@ -250,7 +265,7 @@
     function fillExistingNode(data) {
       for (var attrname in beaker[data.id]) {
         var nodeval = document.getElementById('node-' + attrname);
-        if (nodeval !== null) {
+        if (nodeval !== undefined) {
           nodeval.value = beaker[data.id][attrname];
         } else {
           console.log('Skipping attribute ' + attrname)
