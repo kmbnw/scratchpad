@@ -336,10 +336,10 @@
 
       data.label = document.getElementById('edge-label').value || "";
 
-      if (beakerInputs[data.from] == null) {
-        beakerInputs[data.from] = {};
+      if (beaker[data.from].output === undefined) {
+        beaker[data.from].output = [];
       }
-      beakerInputs[data.from][data.to] = data.label;
+      beaker[data.from].output.push({to: data.to, path: data.label});
 
       clearEdgePopUp();
       callback(data);
@@ -363,42 +363,6 @@
         }
 
         resizeExportArea();
-    }
-
-    function getNodeById(data, id) {
-      for (var n = 0; n < data.length; n++) {
-        if (data[n].id == id) {  // double equals since id can be numeric or string
-          return data[n];
-        }
-      };
-
-      throw 'Can not find id \'' + id + '\' in data';
-    }
-
-    function getEdgeData(data) {
-      var networkEdges = [];
-
-      data.forEach(function(node) {
-        // add the connection
-        node.connections.forEach(function(connId, cIndex, conns) {
-          networkEdges.push({from: node.id, to: connId});
-          let cNode = getNodeById(data, connId);
-
-          var elementConnections = cNode.connections;
-
-          // remove the connection from the other node to prevent duplicate connections
-          var duplicateIndex = elementConnections.findIndex(function(connection) {
-            return connection == node.id; // double equals since id can be numeric or string
-          });
-
-
-          if (duplicateIndex != -1) {
-            elementConnections.splice(duplicateIndex, 1);
-          };
-        });
-      });
-
-      return new vis.DataSet(networkEdges);
     }
 
     function importNetwork() {
