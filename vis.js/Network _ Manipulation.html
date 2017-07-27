@@ -94,12 +94,6 @@
       }
     }
 
-    function getRandomInt(min, max) {
-      min = Math.ceil(min);
-      max = Math.floor(max);
-      return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
-    }
-
     function draw(initialize) {
       destroy();
       nodes = [];
@@ -166,7 +160,7 @@
             }
           },
           deleteEdge: function(data, callback) {
-            callback(data);
+            deleteEdgeData(data, callback);
           }
         }
       };
@@ -180,24 +174,20 @@
         'ws': {
           dockerImage: 'foo:bingsearch',
           desc: 'Web Search',
-          output: [
-            {to: 'lda', path: 'search.tar.gz'},
-            {to: 'es', path: 'websearch.tar.gz'}
-          ]
+          output: {
+            'lda': 'search.tar.gz',
+            'es': 'websearch.tar.gz'
+          }
         },
         'lda': {
           dockerImage: 'foo:lda',
           desc: 'LDA Model',
-          output: [
-            {to: 'lda2vec', path: 'vectorized/'}
-          ]
+          output: {'lda2vec': 'vectorized/'}
         },
         'lda2vec': {
           dockerImage: 'foo:lda2vec',
           desc: 'LDA2Vec Embedding',
-          output: [
-            {to: 'es', path: 'embeddings/'}
-          ]
+          output: {'es': 'embeddings/'}
         },
         'es': {
           dockerImage: 'foo:elastic',
@@ -206,9 +196,7 @@
         'syn': {
           datasetId: 'DS12345',
           desc: 'Synonyms File',
-          output: [
-            {to: 'es', path: 'synonyms.txt'}
-          ]
+          output: {'es': 'synonyms.txt'}
         }
       };
 
@@ -245,9 +233,10 @@
       var edges = Object.keys(beakerObj).map(function(key){
         var outputs = beakerObj[key].output;
         if (outputs !== undefined) {
-          return outputs.map(function(output){
-            var edgeId = key + ":" + output.to;
-            return {id: edgeId, from: key, to: output.to, label: output.path}
+          return Object.keys(outputs).map(function(resultKey){
+            var edgeId = key + ":" + resultKey;
+            var resultPath = outputs[resultKey];
+            return {id: edgeId, from: key, to: resultKey, label: resultPath}
           });
         }
       });
@@ -337,11 +326,20 @@
       data.label = document.getElementById('edge-label').value || "";
 
       if (beaker[data.from].output === undefined) {
-        beaker[data.from].output = [];
+        beaker[data.from].output = {};
       }
-      beaker[data.from].output.push({to: data.to, path: data.label});
+      beaker[data.from].output[data.to] = data.label;
 
       clearEdgePopUp();
+      callback(data);
+      exportNetwork();
+    }
+
+    function deleteEdgeData(data, callback) {
+      data.edges.forEach(function(edgeKey) {
+        var pair = edgeKey.split(':');
+        delete beaker[pair[0]].output[pair[1]];
+      });
       callback(data);
       exportNetwork();
     }
