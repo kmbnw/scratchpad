@@ -124,7 +124,6 @@
           addNode: function (data, callback) {
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Add Node";
-            fillExistingNode(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = clearNodePopUp.bind();
             document.getElementById('network-popUp').style.display = 'block';
@@ -132,7 +131,7 @@
           editNode: function (data, callback) {
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Edit Node";
-            fillExistingNode(data);
+            fillForNodeEdit(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = cancelNodeEdit.bind(this,callback);
             document.getElementById('network-popUp').style.display = 'block';
@@ -278,15 +277,19 @@
 
     function saveNodeData(node, callback) {
       var id = node.id;
+      var name = document.getElementById('node-name').value;
 
       if (beaker[id] == null) {
-        beaker[id] = {};
+          beaker[id] = {};
       }
 
       nodeKeys.forEach(function(k) {
         var nodeElem = document.getElementById('node-' + k);
         if (nodeElem != null) {
-          beaker[id][k] = nodeElem.value;
+          var val = nodeElem.value || "";
+          if (val != "") {
+            beaker[id][k] = val;
+          }
         } else {
           console.log('Skipping save for attribute ' + k)
         }
@@ -322,7 +325,9 @@
       exportNetwork();
     }
 
-    function fillExistingNode(node) {
+    function fillForNodeEdit(node) {
+      document.getElementById('node-name').value = node.id;
+
       for (var attrname in beaker[node.id]) {
         var nodeElem = document.getElementById('node-' + attrname);
         if (nodeElem != null) {
@@ -454,6 +459,9 @@
   <span id="operation">node</span> <br>
   <table style="margin:auto;">
     <tbody>
+      <tr>
+        <td>Name</td><td><input id="node-name" value=""></td>
+      </tr>
       <tr>
         <td>Description</td><td><input id="node-desc" value=""></td>
       </tr>
