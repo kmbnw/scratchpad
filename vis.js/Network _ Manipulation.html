@@ -94,6 +94,12 @@
       }
     }
 
+    function getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
+    }
+
     function draw(numNodes) {
       destroy();
       nodes = [];
@@ -101,6 +107,7 @@
 
       // create a network
       options = {
+        layout:{randomSeed: 124762},
         edges: {
           /*smooth: {
             'type': 'cubicBezier',
@@ -441,6 +448,12 @@
               document.getElementById("edge-saveButton").click();
           }
       });
+
+      document.getElementById("input_output").addEventListener(
+        "keyup",
+        function(event) {
+          importNetwork();
+      });
     }
 
   </script>
@@ -506,7 +519,6 @@
   </div>
 </div>
 <div>
-  <input type="button" id="refresh_button" onclick="importNetwork()" value="refresh">
   <input type="button" id="destroy_button" onclick="destroyNetwork()" value="destroy">
 </div>
 <div>
