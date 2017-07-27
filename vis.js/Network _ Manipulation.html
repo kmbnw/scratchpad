@@ -45,7 +45,7 @@
       top:350px;
       left:170px;
       z-index:299;
-      width:250px;
+      width:300px;
       /*height:120px;*/
       background-color: #f9f9f9;
       border-style:solid;
@@ -122,7 +122,7 @@
           addNode: function (data, callback) {
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Add Node";
-            document.getElementById('node-label').value = data.label;
+            fillExistingNode(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = clearPopUp.bind();
             document.getElementById('network-popUp').style.display = 'block';
@@ -130,7 +130,6 @@
           editNode: function (data, callback) {
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Edit Node";
-            document.getElementById('node-label').value = data.label;
             fillExistingNode(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
@@ -201,19 +200,32 @@
       };
 
       Object.keys(beaker).forEach(function(k) {
-        beaker[k]['resultPath'] = '/results';
+        if (beaker[k].datasetId === undefined) {
+          beaker[k]['resultPath'] = '/results';
+        }
       });
 
-      var nodes = Object.keys(beaker).map(function(key){
-        var node = {id: key, label: beaker[key].desc};
-        if (beaker[key].datasetId != null) {
+      var data = {
+        nodes: toVisJSNodes(beaker),
+        edges: toVisJSEdges(beaker)
+      };
+
+      network = new vis.Network(container, data, options);
+    }
+
+    function toVisJSNodes(beakerObj) {
+      return Object.keys(beakerObj).map(function(key){
+        var node = {id: key, label: beakerObj[key].desc};
+        if (beakerObj[key].datasetId != null) {
           node.shape = 'ellipse';
         }
         return node;
       });
+    }
 
-      var edges = Object.keys(beaker).map(function(key){
-        var outputs = beaker[key].output;
+    function toVisJSEdges(beakerObj) {
+      var edges = Object.keys(beakerObj).map(function(key){
+        var outputs = beakerObj[key].output;
         if (outputs !== undefined) {
           return outputs.map(function(output){
             var edgeId = key + ":" + output.to;
@@ -228,13 +240,7 @@
       edges = edges.reduce(function(a, b) {
         return a.concat(b);
       });
-
-      var data = {
-        nodes: nodes,
-        edges: edges
-      };
-
-      network = new vis.Network(container, data, options);
+      return edges;
     }
 
     function clearPopUp() {
@@ -248,7 +254,7 @@
       callback(null);
     }
 
-    function saveNodeData(data,callback) {
+    function saveNodeData(data, callback) {
       data.label = document.getElementById('node-label').value;
 
       beaker[data.id] = {
@@ -437,7 +443,7 @@
       draw(5);
       exportNetwork();
 
-      var nodeLabels = ['node-label', 'node-dockerImage', 'node-resultPath'];
+      var nodeLabels = ['node-desc', 'node-dockerImage', 'node-resultPath'];
       nodeLabels.forEach(function(lbl) {
         document.getElementById(lbl).addEventListener(
           "keydown",
@@ -469,13 +475,22 @@
   <table style="margin:auto;">
     <tbody>
       <tr>
-        <td>label</td><td><input id="node-label" value="new value"></td>
+        <td>Description</td><td><input id="node-desc" value=""></td>
       </tr>
       <tr>
-        <td>Docker image</td><td><input id="node-dockerImage" value=""></td>
+        <td colspan="2">Set either the Docker image:</td>
       </tr>
       <tr>
-        <td>Result path</td><td><input id="node-resultPath" value="/results"></td>
+        <td>Docker Image</td><td><input id="node-dockerImage" value=""></td>
+      </tr>
+      <tr>
+        <td>Result path</td><td><input id="node-resultPath" value=""></td>
+      </tr>
+      <tr>
+        <td colspan="2">Or the dataset:</td>
+      </tr>
+      <tr>
+        <td>Dataset ID</td><td><input id="node-datasetId" value=""></td>
       </tr>
     </tbody>
   </table>
