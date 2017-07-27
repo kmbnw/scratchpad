@@ -83,8 +83,9 @@
     var exportArea;
     var seed = 2;
 
+    var nodeKeys = ['dockerImage', 'desc', 'resultPath', 'datasetId'];
+
     var beaker = {};
-    var beakerEdges = {};
 
     function destroy() {
       if (network !== null) {
@@ -124,7 +125,7 @@
             document.getElementById('operation').innerHTML = "Add Node";
             fillExistingNode(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
-            document.getElementById('cancelButton').onclick = clearPopUp.bind();
+            document.getElementById('cancelButton').onclick = clearNodePopUp.bind();
             document.getElementById('network-popUp').style.display = 'block';
           },
           editNode: function (data, callback) {
@@ -213,12 +214,17 @@
       network = new vis.Network(container, data, options);
     }
 
+    function getShape(beakerItem) {
+      if ((beakerItem.datasetId || "") != "") {
+        return 'ellipse';
+      }
+      return 'box';
+    }
+
     function toVisJSNodes(beakerObj) {
-      return Object.keys(beakerObj).map(function(key){
-        var node = {id: key, label: beakerObj[key].desc};
-        if (beakerObj[key].datasetId != null) {
-          node.shape = 'ellipse';
-        }
+      return Object.keys(beakerObj).map(function(id){
+        var node = {id: id, label: beakerObj[id].desc};
+        node.shape = getShape(beakerObj[id]);
         return node;
       });
     }
@@ -243,38 +249,48 @@
       return edges;
     }
 
-    function clearPopUp() {
+    function clearNodePopUp() {
       document.getElementById('saveButton').onclick = null;
       document.getElementById('cancelButton').onclick = null;
       document.getElementById('network-popUp').style.display = 'none';
     }
 
     function cancelEdit(callback) {
-      clearPopUp();
+      clearNodePopUp();
       callback(null);
     }
 
-    function saveNodeData(data, callback) {
-      data.label = document.getElementById('node-label').value;
+    function saveNodeData(node, callback) {
+      var id = node.id;
 
-      beaker[data.id] = {
-        'label': data.label,
-        'dockerImage': document.getElementById('node-dockerImage').value,
-        'resultPath': document.getElementById('node-resultPath').value
-      };
+      if (beaker[id] == null) {
+        beaker[id] = {};
+      }
 
-      clearPopUp();
-      callback(data);
+      nodeKeys.forEach(function(k) {
+        var nodeElem = document.getElementById('node-' + k);
+        if (nodeElem != null) {
+          beaker[id][k] = nodeElem.value;
+        } else {
+          console.log('Skipping save for attribute ' + k)
+        }
+      });
+
+      node.label = beaker[id].desc || "";
+      node.shape = getShape(beaker[id]);
+
+      clearNodePopUp();
+      callback(node);
       exportNetwork();
     }
 
-    function fillExistingNode(data) {
-      for (var attrname in beaker[data.id]) {
-        var nodeval = document.getElementById('node-' + attrname);
-        if (nodeval !== undefined) {
-          nodeval.value = beaker[data.id][attrname];
+    function fillExistingNode(node) {
+      for (var attrname in beaker[node.id]) {
+        var nodeElem = document.getElementById('node-' + attrname);
+        if (nodeElem != null) {
+          nodeElem.value = beaker[node.id][attrname];
         } else {
-          console.log('Skipping attribute ' + attrname)
+          console.log('Skipping fill for attribute ' + attrname)
         }
       }
     }
@@ -408,9 +424,8 @@
       draw(5);
       exportNetwork();
 
-      var nodeLabels = ['node-desc', 'node-dockerImage', 'node-resultPath'];
-      nodeLabels.forEach(function(lbl) {
-        document.getElementById(lbl).addEventListener(
+      nodeKeys.forEach(function(k) {
+        document.getElementById('node-' + k).addEventListener(
           "keydown",
           function(event) {
             if (event.keyCode == 13) {
