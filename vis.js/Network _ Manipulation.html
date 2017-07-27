@@ -86,6 +86,7 @@
     var nodeKeys = ['dockerImage', 'desc', 'resultPath', 'datasetId'];
 
     var beaker = {};
+    var beakerNodes = {};
 
     function destroy() {
       if (network !== null) {
@@ -210,8 +211,8 @@
       });
 
       var data = {
-        nodes: toVisJSNodes(beaker),
-        edges: toVisJSEdges(beaker)
+        nodes: toVisJSNodes(),
+        edges: toVisJSEdges()
       };
 
       network = new vis.Network(container, data, options);
@@ -224,17 +225,18 @@
       return 'box';
     }
 
-    function toVisJSNodes(beakerObj) {
-      return Object.keys(beakerObj).map(function(id){
-        var node = {id: id, label: beakerObj[id].desc};
-        node.shape = getShape(beakerObj[id]);
+    function toVisJSNodes() {
+      return Object.keys(beaker).map(function(name){
+        var id = name + '_id';
+        var node = {id: id, label: beaker[name].desc};
+        node.shape = getShape(beaker[name]);
         return node;
       });
     }
 
-    function toVisJSEdges(beakerObj) {
-      var edges = Object.keys(beakerObj).map(function(key){
-        var outputs = beakerObj[key].output;
+    function toVisJSEdges() {
+      var edges = Object.keys(beaker).map(function(key){
+        var outputs = beaker[key].output;
         if (outputs !== undefined) {
           return Object.keys(outputs).map(function(resultKey){
             var edgeId = key + ":" + resultKey;
@@ -279,8 +281,28 @@
       var id = node.id;
       var name = document.getElementById('node-name').value;
 
-      if (beaker[id] == null) {
-          beaker[id] = {};
+      // vis.js doesn't like us messing with IDs so manage an abstraction
+      // over them
+      var oldName = beakerNodes[id] || name;
+
+      beakerNodes[id] = name;
+
+      if (oldName != name) {
+          beaker[name] = beaker[oldName];
+          delete beaker[oldName];
+          // update edges
+          Object.keys(beaker).forEach(function(k){
+            if (beaker[k].output !== undefined) {
+              Object.keys(beaker[k].output).forEach(function(linkKey){
+                if (linkKey == oldName) {
+                  beaker[k].output[name] = beaker[k].output[oldName];
+                  delete beaker[k].output[oldName];
+                }
+              });
+            }
+          });
+      } else if (beaker[name] === undefined) {
+        beaker[name] = {};
       }
 
       nodeKeys.forEach(function(k) {
@@ -389,11 +411,11 @@
 
     function importNetwork() {
       var inputValue = exportArea.value;
-      var inputData = JSON.parse(inputValue);
+      beaker = JSON.parse(inputValue);
       
-      var nodes = toVisJSNodes(inputData);
+      var nodes = toVisJSNodes();
       //console.log(JSON.stringify(nodes, undefined, 2));
-      var edges = toVisJSEdges(inputData);
+      var edges = toVisJSEdges();
 
       var data = {
         nodes: new vis.DataSet(nodes),
