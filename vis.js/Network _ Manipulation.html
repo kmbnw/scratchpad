@@ -358,11 +358,12 @@
 
     function fillForNodeEdit(node) {
       document.getElementById('node-name').value = node.id;
+      var name = id2Name[node.id];
 
-      for (var attrname in beaker[node.id]) {
+      for (var attrname in beaker[name]) {
         var nodeElem = document.getElementById('node-' + attrname);
         if (nodeElem != null) {
-          nodeElem.value = beaker[node.id][attrname];
+          nodeElem.value = beaker[name][attrname];
         } else {
           console.log('Skipping fill for attribute ' + attrname)
         }
@@ -381,7 +382,10 @@
       deleteEdgeData(data);
 
       data.nodes.forEach(function(nodeId) {
-        delete beaker[nodeId];
+        var name = id2Name[nodeId];
+        delete beaker[name];
+        delete id2Name[nodeId];
+        delete name2Id[name];
       });
     }
 
