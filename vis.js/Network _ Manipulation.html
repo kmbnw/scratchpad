@@ -83,7 +83,8 @@
     var exportArea;
     var seed = 2;
 
-    var nodeKeys = ['dockerImage', 'desc', 'resultPath', 'datasetId'];
+    var beakerKeys = ['dockerImage', 'desc', 'resultPath', 'datasetId'];
+    var nodeKeys = beakerKeys.slice(0).concat('name');
 
     var beaker = {};
     var id2Name = {};
@@ -96,6 +97,14 @@
       }
     }
 
+    function NewNetwork(container, data, options) {
+      var network = new vis.Network(container, data, options);
+      network.on("stabilizationIterationsDone", function () {
+          network.setOptions( { physics: false } );
+      });
+      return network;
+    }
+
     function draw(initialize) {
       destroy();
       nodes = [];
@@ -104,18 +113,30 @@
       // create a network
       options = {
         layout:{randomSeed: 124762},
+        // https://stackoverflow.com/questions/32403578/stop-vis-js-physics-after-nodes-load-but-allow-drag-able-nodes
+        physics: {
+          forceAtlas2Based: {
+              gravitationalConstant: -26,
+              centralGravity: 0.005,
+              springLength: 230,
+              springConstant: 0.18,
+              avoidOverlap: 1.5
+          },
+          maxVelocity: 146,
+          solver: 'forceAtlas2Based',
+          timestep: 0.35,
+          stabilization: {
+              enabled: true,
+              iterations: 1000,
+              updateInterval: 25
+          }
+        },
         edges: {
-          /*smooth: {
-            'type': 'cubicBezier',
-            'forceDirection':'none'
-          },*/
           smooth: false,
-          physics: false,
           arrows: {to : true }
         },
         nodes: {
-          shape: "box",
-          physics: false
+          shape: "box"
         },
         /*layout: {
           hierarchical: {
@@ -126,6 +147,7 @@
           addNode: function (data, callback) {
             // filling in the popup DOM elements
             document.getElementById('operation').innerHTML = "Add Node";
+            fillForNodeNew(data);
             document.getElementById('saveButton').onclick = saveNodeData.bind(this, data, callback);
             document.getElementById('cancelButton').onclick = clearNodePopUp.bind();
             document.getElementById('network-popUp').style.display = 'block';
@@ -171,7 +193,7 @@
       };
 
       if (!initialize) {
-        network = new vis.Network(container, {}, options);
+        network = NewNetwork(container, {}, options);
         return;
       }
 
@@ -217,7 +239,7 @@
         edges: toVisJSEdges()
       };
 
-      network = new vis.Network(container, data, options);
+      network = NewNetwork(container, data, options);
     }
 
     function getShape(beakerItem) {
@@ -277,7 +299,7 @@
       clearNodePopUp();
       callback(null);
     }
-    
+
     function cancelEdgeEdit(callback) {
       clearEdgePopUp();
       callback(null);
@@ -312,7 +334,7 @@
         beaker[name] = {};
       }
 
-      nodeKeys.forEach(function(k) {
+      beakerKeys.forEach(function(k) {
         var nodeElem = document.getElementById('node-' + k);
         if (nodeElem != null) {
           var val = nodeElem.value || "";
@@ -357,17 +379,30 @@
     }
 
     function fillForNodeEdit(node) {
-      document.getElementById('node-name').value = node.id;
       var name = id2Name[node.id];
+      document.getElementById('node-name').value = name;
 
-      for (var attrname in beaker[name]) {
+      Object.keys(beaker[name]).forEach(function(attrname) {
         var nodeElem = document.getElementById('node-' + attrname);
         if (nodeElem != null) {
           nodeElem.value = beaker[name][attrname];
         } else {
           console.log('Skipping fill for attribute ' + attrname)
         }
-      }
+      });
+    }
+
+    function fillForNodeNew(node) {
+      document.getElementById('node-name').value = "";
+
+      nodeKeys.forEach(function(name) {
+        var nodeElem = document.getElementById('node-' + name);
+        if (nodeElem != null) {
+          nodeElem.value = "";
+        } else {
+          console.log('Skipping fill for attribute ' + name);
+        }
+      });
     }
 
     function editEdgeWithoutDrag(data, callback) {
@@ -400,7 +435,7 @@
           delete beaker[from].output;
         }
       });
-      
+
     }
 
     function addConnections(elem, index) {
@@ -425,7 +460,7 @@
     function importNetwork() {
       var inputValue = exportArea.value;
       beaker = JSON.parse(inputValue);
-      
+
       var nodes = toVisJSNodes();
       //console.log(JSON.stringify(nodes, undefined, 2));
       var edges = toVisJSEdges();
