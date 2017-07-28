@@ -86,7 +86,8 @@
     var nodeKeys = ['dockerImage', 'desc', 'resultPath', 'datasetId'];
 
     var beaker = {};
-    var beakerNodes = {};
+    var id2Name = {};
+    var name2Id = {};
 
     function destroy() {
       if (network !== null) {
@@ -210,8 +211,9 @@
         }
       });
 
+      var nodes = toVisJSNodes();
       var data = {
-        nodes: toVisJSNodes(),
+        nodes: nodes,
         edges: toVisJSEdges()
       };
 
@@ -228,6 +230,8 @@
     function toVisJSNodes() {
       return Object.keys(beaker).map(function(name){
         var id = name + '_id';
+        id2Name[id] = name;
+        name2Id[name] = id;
         var node = {id: id, label: beaker[name].desc};
         node.shape = getShape(beaker[name]);
         return node;
@@ -235,13 +239,15 @@
     }
 
     function toVisJSEdges() {
-      var edges = Object.keys(beaker).map(function(key){
-        var outputs = beaker[key].output;
+      var edges = Object.keys(beaker).map(function(name){
+        var outputs = beaker[name].output;
         if (outputs !== undefined) {
-          return Object.keys(outputs).map(function(resultKey){
-            var edgeId = key + ":" + resultKey;
-            var resultPath = outputs[resultKey];
-            return {id: edgeId, from: key, to: resultKey, label: resultPath}
+          return Object.keys(outputs).map(function(outgoing){
+            var from = name2Id[name];
+            var to = name2Id[outgoing];
+            var edgeId = from + ":" + to;
+            var resultPath = outputs[outgoing];
+            return {id: edgeId, from: from, to: to, label: resultPath};
           });
         }
       });
@@ -283,9 +289,10 @@
 
       // vis.js doesn't like us messing with IDs so manage an abstraction
       // over them
-      var oldName = beakerNodes[id] || name;
+      var oldName = id2Name[id] || name;
 
-      beakerNodes[id] = name;
+      id2Name[id] = name;
+      name2Id[name] = id;
 
       if (oldName != name) {
           beaker[name] = beaker[oldName];
@@ -310,15 +317,15 @@
         if (nodeElem != null) {
           var val = nodeElem.value || "";
           if (val != "") {
-            beaker[id][k] = val;
+            beaker[name][k] = val;
           }
         } else {
           console.log('Skipping save for attribute ' + k)
         }
       });
 
-      node.label = beaker[id].desc || "";
-      node.shape = getShape(beaker[id]);
+      node.label = beaker[name].desc || "";
+      node.shape = getShape(beaker[name]);
 
       clearNodePopUp();
       callback(node);
@@ -336,11 +343,13 @@
       data.label = document.getElementById('edge-label').value || "";
 
       data.id = data.from + ":" + data.to;
+      var from = id2Name[data.from];
+      var to = id2Name[data.to];
 
-      if (beaker[data.from].output === undefined) {
-        beaker[data.from].output = {};
+      if (beaker[from].output === undefined) {
+        beaker[from].output = {};
       }
-      beaker[data.from].output[data.to] = data.label;
+      beaker[from].output[to] = data.label;
 
       clearEdgePopUp();
       callback(data);
@@ -379,8 +388,8 @@
     function deleteEdgeData(data) {
       data.edges.forEach(function(edgeKey) {
         var pair = edgeKey.split(':');
-        var from = pair[0];
-        var to = pair[1];
+        var from = id2Name[pair[0]];
+        var to = id2Name[pair[1]];
         delete beaker[from].output[to];
 
         if (Object.keys(beaker[from].output).length == 0) {
