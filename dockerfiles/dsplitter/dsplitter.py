@@ -4,8 +4,13 @@ import codecs
 import math
 from argparse import ArgumentParser
 
-def mk_filename(outdir, idx):
-    return open(os.path.join(outdir, 'split%05d' % (idx, )))
+def chunk_size(src, encoding):
+    count = 0
+    with codecs.open(src, 'r', encoding=encoding) as ifh:
+        for line in ifh:
+            count += 1
+
+    return int(math.ceil(1.0 * count / args.num_splits))
 
 
 if __name__ == '__main__':
@@ -20,13 +25,6 @@ if __name__ == '__main__':
     if args.num_splits < 2:
         p.error('--num-splits must be greater than 1')
 
-    count = 0
-    with codecs.open(args.input, 'r', encoding='UTF8') as ifh:
-        for line in ifh:
-            count += 1
-
-    n_per_chunk = int(math.ceil(1.0 * count / args.num_splits))
-
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
 
@@ -38,19 +36,19 @@ if __name__ == '__main__':
         return dname
 
 
-    def mk_filename(file_idx):
-        return os.path.join(ensure_dir(file_idx), 'split_output.txt')
+    def mk_filename(file_idx, fname):
+        return os.path.join(ensure_dir(file_idx), fname)
 
 
     idx = [-1]
-    def open_new_output_file():
+    def open_new_output_file(fname):
         try:       
-            close(mk_filename(idx[0]))
+            close(mk_filename(idx[0], fname))
         except Exception:
             pass
 
         idx[0] += 1
-        dst = mk_filename(idx[0])
+        dst = mk_filename(idx[0], fname)
         print (dst)
         if os.path.exists(dst):
             raise Exception('Refusing to overwrite %s' % (dst, ))
@@ -64,14 +62,15 @@ if __name__ == '__main__':
                 "Input directory must have only files; found subdirectory '%s'" %
                 (src, ))
 
+        n_per_chunk = chunk_size(src, args.encoding)
         idx[0] = -1
-        dst = open_new_output_file()
+        dst = open_new_output_file(fname)
         count = 0
-        with codecs.open(args.input, 'r', encoding=args.encoding) as ifh:
+        with codecs.open(src, 'r', encoding=args.encoding) as ifh:
             for line in ifh:
                 dst.write(line)
 
                 count += 1
                 if count % n_per_chunk == 0:
                     count = 0
-                    dst = open_new_output_file()
+                    dst = open_new_output_file(fname)
