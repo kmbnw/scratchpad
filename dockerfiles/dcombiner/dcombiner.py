@@ -32,8 +32,12 @@ if __name__ == '__main__':
             if idx in parts:
                 raise Exception("Already found part %d: %s" % (idx, parts[idx]))
             parts[idx] = d
-        if sorted(parts.keys()) != range(0, len(parts)):
-            raise Exception("part_ directories must be sequentially numbered")
+        expected = list(range(0, len(parts)))
+        actual = list(sorted(parts.keys()))
+        if actual != expected:
+            raise Exception(
+                "part_ directories must be sequentially numbered; got %s but expected %s" %
+                (actual, expected))
 
         if not 0 in parts:
             raise Exception("First directory must be indexed at zero")
