@@ -46,24 +46,20 @@ if __name__ == '__main__':
     # for each file in each part directory, append the output
     for idx in sorted(dirmap):
         parent_dir = os.path.join(args.indir, dirmap[idx])
-        written = set()
         fnames = os.listdir(parent_dir)
         fnames = [f for f in fnames if os.path.isfile(os.path.join(parent_dir, f))]
 
         for fname in fnames:
             src = os.path.join(parent_dir, fname)
             dst = os.path.join(args.outdir, fname)
+            print (dst)
 
             if idx == 0:
                 seen.add(fname)
             elif fname not in seen:
                 raise Exception("File '%s' from part_%d not seen in part_0" % (fname, idx))
-            written.add(fname)
 
             with codecs.open(dst, 'a', encoding='UTF8') as ofh:
                 with codecs.open(src, 'r', encoding='UTF8') as ifh:
                     for line in ifh:
                         ofh.write(line)
-
-        if len(seen) != len(written):
-            raise Exception("Mismatch in files seen in '%s': %s vs %s" % (parent_dir, seen, written))

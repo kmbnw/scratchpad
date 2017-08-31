@@ -51,7 +51,7 @@ if __name__ == '__main__':
         dst = mk_filename(idx[0], fname)
         print (dst)
         if os.path.exists(dst):
-            raise Exception('Refusing to overwrite %s' % (dst, ))
+            raise Exception('Cowardly refusing to overwrite %s' % (dst, ))
         return codecs.open(dst, 'w', encoding=args.encoding)
 
 
