@@ -125,6 +125,12 @@ df.out <- as.data.frame(opt)
 df.out$RMSE <- m.rmse
 
 jsondata <- jsonlite::toJSON(df.out, pretty = TRUE)
+# metrics.json apparently won't take an array :|
+
+last <- nchar(jsondata)
+jsondata <- substr(jsondata, 2, last)
+jsondata <- substr(jsondata, 1, last - 2)
+
 conn <- file("/output/metrics.json")
 writeLines(jsondata, conn)
 close(conn)
