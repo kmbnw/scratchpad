@@ -45,6 +45,7 @@ if __name__ == '__main__':
         return parts
 
     dirmap = get_dirmap()
+    print ("                      ", dirmap)
     seen = set()
 
     # for each file in each part directory, append the output
