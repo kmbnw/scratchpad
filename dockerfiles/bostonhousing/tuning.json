@@ -1,0 +1,14 @@
+{
+    "env": [
+                {
+                    "name": "XGB_NROUNDS",
+                    "range": {"start": 1, "step": 1, "end": 3}
+                },
+                {
+                    "name": "XGB_MAXDEPTH",
+                    "range": {"start": 1, "step": 1, "end": 3}
+                }
+            ],
+    "args": [
+            ]
+}
