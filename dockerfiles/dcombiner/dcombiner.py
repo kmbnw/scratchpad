@@ -24,6 +24,7 @@ if __name__ == '__main__':
     parts = {}
     def get_dirmap():
         dirs = os.listdir(args.indir)
+        print ("Input directory listing: '%s'" % dirs)
         dirs = [d for d in dirs if os.path.isdir(os.path.join(args.indir, d))]
         for d in dirs:
             if not _path_re.match(d):
@@ -40,7 +41,7 @@ if __name__ == '__main__':
                 (actual, expected))
 
         if not 0 in parts:
-            raise Exception("First directory must be indexed at zero")
+            raise Exception("First directory must be indexed at zero; found %s" % parts)
 
         return parts
 
